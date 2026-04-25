@@ -1,26 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* Mumzworld Brand Colors */
+  --mw-navy: #003d6e;
+  --mw-navy-light: #004d8a;
+  --mw-navy-dark: #002d52;
+  --mw-pink: #e91e63;
+  --mw-pink-light: #fce4ec;
+  --mw-pink-hover: #c2185b;
+  --mw-teal: #00897b;
+  --mw-teal-light: #e0f2f1;
+  --mw-coral: #ff6f61;
+  --mw-coral-light: #fbe9e7;
+  --mw-purple: #7c4dff;
+  --mw-purple-light: #ede7f6;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Backgrounds */
+  --mw-bg: #f8f9fc;
+  --mw-bg-white: #ffffff;
+  --mw-card-border: #e8edf2;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Text */
+  --mw-text-primary: #1a2332;
+  --mw-text-secondary: #5a6577;
+
+  /* Amber (for on_hold / P2) */
+  --mw-amber: #f59e0b;
+  --mw-amber-light: #fef3c7;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--mw-bg);
+  color: var(--mw-text-primary);
 }
