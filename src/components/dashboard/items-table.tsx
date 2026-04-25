@@ -418,7 +418,13 @@ export function ItemsTable() {
                           </td>
                           <td className="px-4 py-2.5">
                             {item.workstream && (
-                              <Badge className="bg-[var(--mw-purple-light)] text-[var(--mw-purple)] capitalize">{item.workstream}</Badge>
+                              <Badge className={
+                                item.workstream === "tech"     ? "bg-blue-50 text-blue-700" :
+                                item.workstream === "brand"    ? "bg-[var(--mw-pink-light)] text-[var(--mw-pink)]" :
+                                item.workstream === "design"   ? "bg-[var(--mw-purple-light)] text-[var(--mw-purple)]" :
+                                item.workstream === "strategy" ? "bg-amber-50 text-amber-700" :
+                                "bg-gray-100 text-gray-600"
+                              }>{item.workstream}</Badge>
                             )}
                           </td>
                           <td className="px-4 py-2.5" onClick={e => { e.stopPropagation(); setEditingCell({ id: item.id, field: 'status' }) }}>

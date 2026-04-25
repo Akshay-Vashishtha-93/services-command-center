@@ -215,22 +215,18 @@ function ServiceHealthCards({ categories }: { categories: CategoryHealth[] }) {
 }
 
 function UpcomingTimeline({ items }: { items: Item[] }) {
-  // Items with ETAs in next 14 days, not done/cancelled
   const now = new Date()
   now.setHours(0, 0, 0, 0)
   const twoWeeks = new Date(now)
   twoWeeks.setDate(twoWeeks.getDate() + 14)
 
-  const upcoming = items
-    .filter((item) => {
-      if (!item.eta) return false
-      if (item.status === "done" || item.status === "cancelled") return false
-      const etaDate = new Date(item.eta)
-      etaDate.setHours(0, 0, 0, 0)
-      return etaDate >= now && etaDate <= twoWeeks
-    })
-    .sort((a, b) => new Date(a.eta!).getTime() - new Date(b.eta!).getTime())
-    .slice(0, 8)
+  const upcoming = items.filter((item) => {
+    if (!item.eta) return false
+    if (item.status === "done" || item.status === "cancelled") return false
+    const etaDate = new Date(item.eta)
+    etaDate.setHours(0, 0, 0, 0)
+    return etaDate >= now && etaDate <= twoWeeks
+  })
 
   if (upcoming.length === 0) {
     return (
@@ -240,64 +236,66 @@ function UpcomingTimeline({ items }: { items: Item[] }) {
     )
   }
 
-  const minDate = now.getTime()
-  const maxDate = twoWeeks.getTime()
-  const range = maxDate - minDate
+  // Group by service, find earliest deadline per service
+  const byService: Record<string, Item[]> = {}
+  upcoming.forEach((item) => {
+    const svc = item.category_name || "General"
+    if (!byService[svc]) byService[svc] = []
+    byService[svc].push(item)
+  })
+
+  // Sort services by their earliest deadline
+  const sortedServices = Object.entries(byService).sort(([, a], [, b]) => {
+    const minA = Math.min(...a.map(i => new Date(i.eta!).getTime()))
+    const minB = Math.min(...b.map(i => new Date(i.eta!).getTime()))
+    return minA - minB
+  })
 
   return (
-    <div className="relative">
-      {/* Timeline bar */}
-      <div className="relative h-3 rounded-full bg-gradient-to-r from-[var(--mw-navy)]/10 via-[var(--mw-pink)]/10 to-[var(--mw-coral)]/10 mx-4">
-        {/* Today marker */}
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[var(--mw-navy)] border-2 border-white shadow-sm z-10" />
-        {/* End marker */}
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[var(--mw-coral)] border-2 border-white shadow-sm z-10" />
-      </div>
+    <div className="flex flex-wrap gap-3">
+      {sortedServices.map(([service, svcItems]) => {
+        const sorted = [...svcItems].sort((a, b) => new Date(a.eta!).getTime() - new Date(b.eta!).getTime())
+        const earliest = getDaysUntil(sorted[0].eta)
+        const hasUrgent = earliest !== null && earliest <= 3
 
-      {/* Labels */}
-      <div className="flex justify-between px-4 mt-1 mb-4">
-        <span className="text-[10px] text-[var(--mw-text-secondary)]">Today</span>
-        <span className="text-[10px] text-[var(--mw-text-secondary)]">+14 days</span>
-      </div>
-
-      {/* Items as cards below the timeline */}
-      <div className="flex gap-2 overflow-x-auto pb-2 px-1 scrollbar-thin">
-        {upcoming.map((item) => {
-          const etaDate = new Date(item.eta!)
-          etaDate.setHours(0, 0, 0, 0)
-          const days = getDaysUntil(item.eta)
-          const position = ((etaDate.getTime() - minDate) / range) * 100
-          const isUrgent = days !== null && days <= 3
-
-          return (
-            <div
-              key={item.id}
-              className={cn(
-                "flex-shrink-0 w-44 rounded-xl border p-2.5 text-xs transition-shadow hover:shadow-md",
-                isUrgent
-                  ? "border-[var(--mw-coral)] bg-[var(--mw-coral-light)]/40"
-                  : "border-[var(--mw-card-border)] bg-white"
-              )}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className={cn(
-                  "font-semibold",
-                  isUrgent ? "text-[var(--mw-coral)]" : "text-[var(--mw-navy)]"
-                )}>
-                  {days === 0 ? "Today" : `${days}d`}
-                </span>
-                <span className="text-[var(--mw-text-secondary)]">{formatDate(item.eta)}</span>
-              </div>
-              <p className="text-[var(--mw-text-primary)] font-medium truncate" title={item.title}>
-                {item.title}
-              </p>
-              {item.owner_name && (
-                <p className="text-[var(--mw-text-secondary)] mt-0.5 truncate">{item.owner_name}</p>
-              )}
+        return (
+          <div
+            key={service}
+            className={cn(
+              "rounded-xl border p-3 min-w-[180px] max-w-[220px] flex-shrink-0",
+              hasUrgent
+                ? "border-[var(--mw-coral)] bg-[var(--mw-coral-light)]/30"
+                : "border-[var(--mw-card-border)] bg-white"
+            )}
+          >
+            <p className={cn(
+              "text-xs font-bold truncate mb-2",
+              hasUrgent ? "text-[var(--mw-coral)]" : "text-[var(--mw-navy)]"
+            )}>
+              {service}
+            </p>
+            <div className="space-y-1.5">
+              {sorted.map((item) => {
+                const days = getDaysUntil(item.eta)
+                const isUrgent = days !== null && days <= 3
+                return (
+                  <div key={item.id} className="flex items-start justify-between gap-2">
+                    <p className="text-[11px] text-[var(--mw-text-primary)] leading-tight line-clamp-2 flex-1" title={item.title}>
+                      {item.title}
+                    </p>
+                    <span className={cn(
+                      "text-[10px] font-semibold whitespace-nowrap flex-shrink-0",
+                      isUrgent ? "text-[var(--mw-coral)]" : "text-[var(--mw-text-secondary)]"
+                    )}>
+                      {days === 0 ? "Today" : `${days}d`}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
-          )
-        })}
-      </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
