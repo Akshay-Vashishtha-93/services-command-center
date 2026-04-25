@@ -1,29 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
-import {
-  getMeeting,
-  getMeetingActionItems,
-  getMeetingDecisions,
-  updateActionItemStatus,
-} from "@/lib/meetings-store"
+import { dbGetMeeting, dbGetMeetingActionItems, dbGetMeetingDecisions, dbUpdateActionItemStatus } from "@/lib/db"
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const meeting = getMeeting(id)
-  if (!meeting) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
-  }
+  const meeting = await dbGetMeeting(id)
+  if (!meeting) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  const actionItems = getMeetingActionItems(id)
-  const decisions = getMeetingDecisions(id)
+  const [actionItems, decisions] = await Promise.all([
+    dbGetMeetingActionItems(id),
+    dbGetMeetingDecisions(id),
+  ])
 
-  return NextResponse.json({
-    ...meeting,
-    action_items: actionItems,
-    decisions,
-  })
+  return NextResponse.json({ ...meeting, action_items: actionItems, decisions })
 }
 
 export async function PATCH(
@@ -31,22 +22,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const meeting = getMeeting(id)
-  if (!meeting) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
-  }
+  const meeting = await dbGetMeeting(id)
+  if (!meeting) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   const body = await request.json()
-
-  // Support updating action item statuses
   if (body.action_item_id && body.status) {
-    const updated = updateActionItemStatus(id, body.action_item_id, body.status)
-    if (!updated) {
-      return NextResponse.json(
-        { error: "Action item not found" },
-        { status: 404 }
-      )
-    }
+    const updated = await dbUpdateActionItemStatus(id, body.action_item_id, body.status)
+    if (!updated) return NextResponse.json({ error: "Action item not found" }, { status: 404 })
     return NextResponse.json(updated)
   }
 
