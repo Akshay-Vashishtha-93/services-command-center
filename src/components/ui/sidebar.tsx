@@ -6,11 +6,9 @@ import { useState } from "react"
 import {
   LayoutDashboard,
   MessageSquare,
-  BarChart3,
   Settings,
   Menu,
   X,
-  FolderOpen,
   ShieldCheck,
   Presentation,
   StickyNote,
@@ -20,10 +18,8 @@ import { cn } from "@/lib/utils"
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Meetings", href: "/meetings", icon: MessageSquare },
-  { label: "Reports", href: "/reports", icon: BarChart3 },
-  { label: "Slides", href: "/presentation", icon: Presentation },
+  { label: "Weekly Charter", href: "/presentation", icon: Presentation },
   { label: "Updates", href: "/updates", icon: StickyNote },
-  { label: "Repository", href: "/repository", icon: FolderOpen },
   { label: "Approvals", href: "/approvals", icon: ShieldCheck },
   { label: "Admin", href: "/admin", icon: Settings },
 ]

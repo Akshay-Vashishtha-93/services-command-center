@@ -1,170 +1,283 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardHeader, CardContent } from "@/components/ui/card"
+import { useState, useRef, useEffect } from "react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
-import { StickyNote, Layers, CheckCircle2, Presentation } from "lucide-react"
-import Link from "next/link"
+import { cn, getStatusColor, getStatusLabel } from "@/lib/utils"
+import {
+  Send,
+  Bot,
+  User,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
+  Loader2,
+  Sparkles,
+  RotateCcw,
+} from "lucide-react"
+
+type Change = {
+  id: string
+  title: string
+  field: string
+  old_value: string
+  new_value: string
+}
+
+type Message = {
+  id: string
+  role: "user" | "agent"
+  text: string
+  changes?: Change[]
+  suggestions?: string[]
+  status?: "applied" | "no_match" | "error"
+  timestamp: Date
+}
+
+const EXAMPLE_COMMANDS = [
+  "Babysitter booking flow went live",
+  "Wallpaper KSA config is in progress",
+  "Birthday party designs are blocked",
+  "Midwife design delayed to May 20",
+  "GA tracking is not started",
+  "Kids interior launched",
+]
 
 export default function UpdatesPage() {
-  const [leadershipNotes, setLeadershipNotes] = useState("")
-  const [serviceNotes, setServiceNotes] = useState("")
-  const [meetingType, setMeetingType] = useState<"leadership" | "internal">("leadership")
-  const [saved, setSaved] = useState(false)
+  const [input, setInput] = useState("")
+  const [messages, setMessages] = useState<Message[]>([])
+  const [processing, setProcessing] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setLeadershipNotes(localStorage.getItem("pres-massi-notes") || "")
-    setServiceNotes(localStorage.getItem("pres-service-notes") || "")
-    setMeetingType(
-      (localStorage.getItem("pres-meeting-type") as "leadership" | "internal") || "leadership"
-    )
-  }, [])
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
 
-  function save() {
-    localStorage.setItem("pres-massi-notes", leadershipNotes)
-    localStorage.setItem("pres-service-notes", serviceNotes)
-    localStorage.setItem("pres-meeting-type", meetingType)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  async function handleSubmit(text?: string) {
+    const instruction = (text || input).trim()
+    if (!instruction || processing) return
+
+    const userMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      text: instruction,
+      timestamp: new Date(),
+    }
+    setMessages(prev => [...prev, userMsg])
+    setInput("")
+    setProcessing(true)
+
+    try {
+      const res = await fetch("/api/updates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instruction }),
+      })
+      const data = await res.json()
+
+      const agentMsg: Message = {
+        id: crypto.randomUUID(),
+        role: "agent",
+        text: data.message || data.error || "Something went wrong",
+        changes: data.changes,
+        suggestions: data.suggestions,
+        status: data.status,
+        timestamp: new Date(),
+      }
+      setMessages(prev => [...prev, agentMsg])
+    } catch {
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        role: "agent",
+        text: "Failed to process update. Check your connection.",
+        status: "error",
+        timestamp: new Date(),
+      }])
+    } finally {
+      setProcessing(false)
+      inputRef.current?.focus()
+    }
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 lg:p-8 max-w-3xl mx-auto flex flex-col h-[calc(100vh-3.5rem)] lg:h-screen">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-center justify-between mb-6 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--mw-navy)]">Manual Updates</h1>
+          <h1 className="text-2xl font-bold text-[var(--mw-navy)] flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-[var(--mw-pink)]" />
+            Quick Updates
+          </h1>
           <p className="text-sm text-[var(--mw-text-secondary)] mt-1">
-            Add context notes for leadership or internal meetings. These feed into the weekly slides automatically.
+            Type natural language to update any service or task
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {saved && (
-            <span className="inline-flex items-center gap-1.5 text-sm text-[var(--mw-teal)] font-medium">
-              <CheckCircle2 className="w-4 h-4" /> Saved
-            </span>
-          )}
+        {messages.length > 0 && (
           <button
-            onClick={save}
-            className="px-4 py-2.5 bg-[var(--mw-pink)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--mw-pink-hover)] transition"
+            onClick={() => setMessages([])}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--mw-text-secondary)] border border-[var(--mw-card-border)] rounded-xl hover:bg-gray-50 transition"
           >
-            Save Notes
+            <RotateCcw className="w-3 h-3" />
+            Clear
           </button>
-        </div>
+        )}
       </div>
 
-      {/* Meeting type selector */}
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-medium text-[var(--mw-text-secondary)]">Meeting context:</span>
-        <div className="flex rounded-xl overflow-hidden border border-[var(--mw-card-border)]">
-          <button
-            onClick={() => setMeetingType("leadership")}
-            className={cn(
-              "px-4 py-2 text-xs font-semibold transition-colors",
-              meetingType === "leadership"
-                ? "bg-[var(--mw-pink)] text-white"
-                : "bg-white text-[var(--mw-text-secondary)] hover:bg-gray-50"
-            )}
-          >
-            Leadership Review
-          </button>
-          <button
-            onClick={() => setMeetingType("internal")}
-            className={cn(
-              "px-4 py-2 text-xs font-semibold transition-colors",
-              meetingType === "internal"
-                ? "bg-[var(--mw-navy)] text-white"
-                : "bg-white text-[var(--mw-text-secondary)] hover:bg-gray-50"
-            )}
-          >
-            Internal Services
-          </button>
-        </div>
-        <Badge className={meetingType === "leadership"
-          ? "bg-[var(--mw-pink-light)] text-[var(--mw-pink)]"
-          : "bg-[var(--mw-navy)]/10 text-[var(--mw-navy)]"
-        }>
-          {meetingType === "leadership" ? "Leadership Review" : "Internal Meeting"}
-        </Badge>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Leadership meeting notes */}
-        <Card>
-          <CardHeader className="py-3">
-            <div className="flex items-center gap-2">
-              <StickyNote className="h-4 w-4 text-[var(--mw-pink)]" />
-              <span className="font-semibold text-sm text-[var(--mw-text-primary)]">
-                {meetingType === "leadership" ? "Leadership Meeting Notes" : "Meeting Notes"}
-              </span>
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+        {messages.length === 0 && (
+          <div className="text-center py-12 space-y-6">
+            <div className="w-16 h-16 rounded-2xl bg-[var(--mw-pink-light)] flex items-center justify-center mx-auto">
+              <Bot className="w-8 h-8 text-[var(--mw-pink)]" />
             </div>
-            <p className="text-xs mt-1 text-[var(--mw-text-secondary)]">
-              {meetingType === "leadership"
-                ? "Appears on the Recap slide in the weekly presentation"
-                : "Context notes for internal reference"}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <textarea
-              value={leadershipNotes}
-              onChange={e => setLeadershipNotes(e.target.value)}
-              placeholder={meetingType === "leadership"
-                ? "Key points discussed, decisions made, context for next meeting..."
-                : "Internal discussion notes..."}
-              className="w-full h-52 rounded-xl border border-[var(--mw-card-border)] p-4 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--mw-pink)] text-[var(--mw-text-primary)]"
-            />
-          </CardContent>
-        </Card>
-
-        {/* Service-specific updates */}
-        <Card>
-          <CardHeader className="py-3">
-            <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-[var(--mw-navy)]" />
-              <span className="font-semibold text-sm text-[var(--mw-text-primary)]">
-                Service Updates
-              </span>
-            </div>
-            <p className="text-xs mt-1 text-[var(--mw-text-secondary)]">
-              Service-specific updates to highlight in the weekly slides
-            </p>
-          </CardHeader>
-          <CardContent>
-            <textarea
-              value={serviceNotes}
-              onChange={e => setServiceNotes(e.target.value)}
-              placeholder="e.g. Babysitter: landing page now in dev sprint&#10;Wallpaper: SEO audit delayed to May 7&#10;Gifting: new service added to tracker"
-              className="w-full h-52 rounded-xl border border-[var(--mw-card-border)] p-4 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--mw-pink)] text-[var(--mw-text-primary)]"
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* How it feeds into slides */}
-      <Card className="bg-[var(--mw-teal-light)]/30 border-[var(--mw-teal)]/30">
-        <CardContent className="py-4">
-          <div className="flex items-start gap-3">
-            <Presentation className="w-5 h-5 text-[var(--mw-teal)] shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-[var(--mw-text-primary)]">How these feed into the slides</p>
-              <ul className="mt-1.5 space-y-1 text-xs text-[var(--mw-text-secondary)]">
-                <li>• <strong>Leadership notes</strong> appear on the Recap slide when meeting type is set to Leadership Review</li>
-                <li>• <strong>Service updates</strong> are shown alongside auto-detected changes from the tracker</li>
-                <li>• Notes are auto-saved to your browser and persist across sessions</li>
-              </ul>
-              <Link href="/presentation" className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--mw-teal)] hover:underline">
-                <Presentation className="w-4 h-4" />
-                View Weekly Slides
-              </Link>
+              <p className="text-lg font-semibold text-[var(--mw-text-primary)]">What would you like to update?</p>
+              <p className="text-sm text-[var(--mw-text-secondary)] mt-1">
+                Tell me in plain English what changed and I'll update the tracker
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-center max-w-lg mx-auto">
+              {EXAMPLE_COMMANDS.map(cmd => (
+                <button
+                  key={cmd}
+                  onClick={() => handleSubmit(cmd)}
+                  className="px-3 py-1.5 text-xs font-medium bg-white border border-[var(--mw-card-border)] rounded-full text-[var(--mw-text-secondary)] hover:border-[var(--mw-pink)]/30 hover:text-[var(--mw-pink)] transition"
+                >
+                  {cmd}
+                </button>
+              ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        )}
 
-      <p className="text-xs text-center text-[var(--mw-text-secondary)]">
-        Notes are saved to your browser. To make them available to the team, use the Meetings section to upload a transcript.
-      </p>
+        {messages.map(msg => (
+          <div
+            key={msg.id}
+            className={cn(
+              "flex gap-3",
+              msg.role === "user" ? "justify-end" : "justify-start"
+            )}
+          >
+            {msg.role === "agent" && (
+              <div className="w-8 h-8 rounded-xl bg-[var(--mw-pink-light)] flex items-center justify-center shrink-0 mt-0.5">
+                <Bot className="w-4 h-4 text-[var(--mw-pink)]" />
+              </div>
+            )}
+
+            <div className={cn(
+              "max-w-[80%] rounded-2xl p-4 space-y-3",
+              msg.role === "user"
+                ? "bg-[var(--mw-navy)] text-white rounded-br-md"
+                : "bg-white border border-[var(--mw-card-border)] rounded-bl-md"
+            )}>
+              <p className={cn(
+                "text-sm",
+                msg.role === "user" ? "text-white" : "text-[var(--mw-text-primary)]"
+              )}>
+                {msg.text}
+              </p>
+
+              {/* Show changes */}
+              {msg.changes && msg.changes.length > 0 && (
+                <div className="space-y-2">
+                  {msg.changes.map((change, i) => (
+                    <div key={i} className="flex items-center gap-2 p-2 rounded-xl bg-[var(--mw-bg)] text-xs">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span className="text-[var(--mw-text-primary)] font-medium truncate flex-1">{change.title}</span>
+                      {change.field === "status" && (
+                        <span className="flex items-center gap-1 shrink-0">
+                          <Badge className={cn(getStatusColor(change.old_value), "text-[9px] px-1 py-0")}>{getStatusLabel(change.old_value)}</Badge>
+                          <ArrowRight className="w-3 h-3 text-gray-400" />
+                          <Badge className={cn(getStatusColor(change.new_value), "text-[9px] px-1 py-0")}>{getStatusLabel(change.new_value)}</Badge>
+                        </span>
+                      )}
+                      {change.field === "eta" && (
+                        <span className="text-[var(--mw-text-secondary)]">
+                          ETA: {change.old_value || "none"} → <strong>{change.new_value || "none"}</strong>
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Show suggestions on no match */}
+              {msg.suggestions && msg.suggestions.length > 0 && (
+                <div className="space-y-1">
+                  {msg.suggestions.map((s, i) => (
+                    <p key={i} className="text-xs text-[var(--mw-text-secondary)]">{s}</p>
+                  ))}
+                </div>
+              )}
+
+              {/* Status indicator */}
+              {msg.status && (
+                <div className="flex items-center gap-1.5 text-[10px]">
+                  {msg.status === "applied" && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                  {msg.status === "no_match" && <AlertCircle className="w-3 h-3 text-amber-500" />}
+                  {msg.status === "error" && <AlertCircle className="w-3 h-3 text-red-500" />}
+                  <span className={cn(
+                    msg.status === "applied" ? "text-emerald-600" :
+                    msg.status === "no_match" ? "text-amber-600" : "text-red-600"
+                  )}>
+                    {msg.status === "applied" ? "Changes applied" :
+                     msg.status === "no_match" ? "No matching items found" : "Error"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {msg.role === "user" && (
+              <div className="w-8 h-8 rounded-xl bg-[var(--mw-navy)] flex items-center justify-center shrink-0 mt-0.5">
+                <User className="w-4 h-4 text-white" />
+              </div>
+            )}
+          </div>
+        ))}
+
+        {processing && (
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-xl bg-[var(--mw-pink-light)] flex items-center justify-center shrink-0">
+              <Bot className="w-4 h-4 text-[var(--mw-pink)]" />
+            </div>
+            <div className="bg-white border border-[var(--mw-card-border)] rounded-2xl rounded-bl-md p-4">
+              <Loader2 className="w-4 h-4 animate-spin text-[var(--mw-text-secondary)]" />
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div className="shrink-0 border-t border-[var(--mw-card-border)] pt-4">
+        <form
+          onSubmit={e => { e.preventDefault(); handleSubmit() }}
+          className="flex gap-3"
+        >
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="e.g. Babysitter went live, Wallpaper KSA is in progress..."
+            disabled={processing}
+            className="flex-1 px-4 py-3 text-sm border border-[var(--mw-card-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--mw-pink)] focus:border-[var(--mw-pink)] bg-white disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={processing || !input.trim()}
+            className="px-5 py-3 rounded-xl bg-[var(--mw-pink)] text-white font-semibold text-sm hover:bg-[var(--mw-pink-hover)] transition disabled:opacity-50 inline-flex items-center gap-2"
+          >
+            <Send className="w-4 h-4" />
+            Send
+          </button>
+        </form>
+        <p className="text-[10px] text-[var(--mw-text-secondary)] mt-2 text-center">
+          Describe what changed in plain English. Supports status updates, ETA changes, and service-level updates.
+        </p>
+      </div>
     </div>
   )
 }
