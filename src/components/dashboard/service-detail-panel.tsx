@@ -135,18 +135,28 @@ export function ServiceDetailPanel({ service, open, onClose, tasks = [], onTaskC
 
   return (
     <>
-      {open && (
-        <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      )}
+      <div
+        className={cn(
+          "fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-300",
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+        onClick={onClose}
+      />
 
       <div
         className={cn(
-          "fixed top-0 right-0 bottom-0 z-50 w-full max-w-lg bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-in-out",
-          open ? "translate-x-0" : "translate-x-full"
+          "fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-300",
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         )}
       >
-        {/* Header — sticky navy */}
-        <div className="sticky top-0 bg-[var(--mw-navy)] text-white p-6 z-10 shrink-0">
+        <div
+          className={cn(
+            "bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col transition-all duration-300",
+            open ? "scale-100" : "scale-95"
+          )}
+        >
+        {/* Header */}
+        <div className="bg-[var(--mw-navy)] text-white p-6 rounded-t-2xl shrink-0">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
               <Badge className={cn("mb-2", catCfg.color)}>{catCfg.icon} {catCfg.label}</Badge>
@@ -401,6 +411,7 @@ export function ServiceDetailPanel({ service, open, onClose, tasks = [], onTaskC
               </div>
             </div>
           )}
+        </div>
         </div>
       </div>
     </>

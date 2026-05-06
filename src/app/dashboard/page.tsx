@@ -304,8 +304,6 @@ export default function DashboardPage() {
   const [syncDialogOpen, setSyncDialogOpen] = useState(false)
   const [meetingDate, setMeetingDate] = useState("")
   const [lastMeetingDate, setLastMeetingDate] = useState<string | null>(null)
-  const [isMeetingSync, setIsMeetingSync] = useState(false)
-
   function fetchAll() {
     Promise.all([
       fetch("/api/items?tab=Services+Enhancement").then((r) => r.json()),
@@ -344,8 +342,7 @@ export default function DashboardPage() {
   useEffect(() => { fetchAll() }, [])
 
   function openSyncDialog() {
-    setIsMeetingSync(false)
-    setMeetingDate("")
+    setMeetingDate(lastMeetingDate || "")
     setSyncDialogOpen(true)
   }
 
@@ -354,15 +351,13 @@ export default function DashboardPage() {
     setRefreshing(true)
     try {
       const body: Record<string, string> = {}
-      if (isMeetingSync && meetingDate) {
-        body.meeting_date = meetingDate
-      }
+      if (meetingDate) body.meeting_date = meetingDate
       await fetch("/api/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       })
-      if (isMeetingSync && meetingDate) {
+      if (meetingDate) {
         await fetch("/api/settings", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -1139,41 +1134,90 @@ export default function DashboardPage() {
         <>
           <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={() => setSyncDialogOpen(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
-              <h3 className="text-lg font-bold text-[var(--mw-navy)]">Sync from Google Sheets</h3>
-              <p className="text-sm text-[var(--mw-text-secondary)]">
-                Pull latest data from your Services Enhancement sheet.
-                {lastMeetingDate && (
-                  <span className="block mt-1">
-                    Last meeting reference: <strong>{new Date(lastMeetingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</strong>
-                  </span>
-                )}
-              </p>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
 
-              <div className="rounded-xl border border-[var(--mw-card-border)] p-4 space-y-3">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isMeetingSync}
-                    onChange={e => setIsMeetingSync(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-[var(--mw-pink)] focus:ring-[var(--mw-pink)]"
-                  />
-                  <div>
-                    <p className="text-sm font-medium text-[var(--mw-text-primary)]">Update meeting reference date</p>
-                    <p className="text-xs text-[var(--mw-text-secondary)]">Set the date of the last presentation to Massi. Changes since this date will be highlighted.</p>
+              {/* Header */}
+              <div className="p-6 border-b border-[var(--mw-card-border)] shrink-0">
+                <h3 className="text-lg font-bold text-[var(--mw-navy)]">Sync from Google Sheets</h3>
+                <p className="text-sm text-[var(--mw-text-secondary)] mt-1">Pull latest data from your Services Enhancement sheet.</p>
+              </div>
+
+              {/* Scrollable body */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-5">
+
+                {/* Meeting reference date */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-[var(--mw-text-primary)]">Meeting Reference Date</h4>
+                    {lastMeetingDate && (
+                      <span className="text-xs text-[var(--mw-text-secondary)] bg-[var(--mw-bg)] border border-[var(--mw-card-border)] px-2.5 py-1 rounded-full">
+                        Last set: <strong>{new Date(lastMeetingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</strong>
+                      </span>
+                    )}
                   </div>
-                </label>
-                {isMeetingSync && (
                   <input
                     type="date"
                     value={meetingDate}
                     onChange={e => setMeetingDate(e.target.value)}
                     className="w-full text-sm border border-[var(--mw-card-border)] rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--mw-pink)]"
                   />
-                )}
+                  <p className="text-xs text-[var(--mw-text-secondary)] mt-1.5">Date of the last presentation to Massi. Items updated since then will be highlighted as NEW.</p>
+                </div>
+
+                {/* Updates table since last meeting */}
+                {lastMeetingDate && (() => {
+                  const sinceItems = items.filter(i => i.updated_at >= lastMeetingDate)
+                  if (sinceItems.length === 0) return (
+                    <div className="rounded-xl border border-[var(--mw-card-border)] p-4 text-center text-sm text-[var(--mw-text-secondary)]">
+                      No items updated since {new Date(lastMeetingDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </div>
+                  )
+                  return (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-sm font-semibold text-[var(--mw-text-primary)]">Updates since last meeting</span>
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--mw-pink-light)] text-[var(--mw-pink)]">{sinceItems.length}</span>
+                        <span className="text-xs text-[var(--mw-text-secondary)] ml-auto">
+                          Previous meeting: <strong>{new Date(lastMeetingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</strong>
+                        </span>
+                      </div>
+                      <div className="rounded-xl border border-[var(--mw-card-border)] overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead className="bg-[var(--mw-bg)] border-b border-[var(--mw-card-border)]">
+                            <tr>
+                              <th className="text-left px-3 py-2 text-[var(--mw-text-secondary)] font-semibold w-14">Item</th>
+                              <th className="text-left px-3 py-2 text-[var(--mw-text-secondary)] font-semibold">Task</th>
+                              <th className="text-left px-3 py-2 text-[var(--mw-text-secondary)] font-semibold w-24">Status</th>
+                              <th className="text-left px-3 py-2 text-[var(--mw-text-secondary)] font-semibold w-20">Updated</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[var(--mw-card-border)]">
+                            {sinceItems.map(item => (
+                              <tr key={item.id} className="hover:bg-[var(--mw-bg)]/50">
+                                <td className="px-3 py-2 text-[var(--mw-text-secondary)] font-mono">{item.item_number}</td>
+                                <td className="px-3 py-2 text-[var(--mw-text-primary)] font-medium max-w-0">
+                                  <span className="block truncate">{item.title}</span>
+                                </td>
+                                <td className="px-3 py-2">
+                                  <span className={cn("px-1.5 py-0.5 rounded-full font-medium", getStatusColor(item.status))}>
+                                    {getStatusLabel(item.status)}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 text-[var(--mw-text-secondary)] whitespace-nowrap">
+                                  {new Date(item.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
 
-              <div className="flex gap-3">
+              {/* Footer */}
+              <div className="flex gap-3 p-6 border-t border-[var(--mw-card-border)] shrink-0">
                 <button
                   onClick={handleSync}
                   className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[var(--mw-pink)] text-white hover:bg-[var(--mw-pink-hover)] transition-all shadow-sm"

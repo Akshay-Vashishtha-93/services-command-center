@@ -166,17 +166,29 @@ export function ServiceHub({ items, onItemsChange, lastMeetingDate }: Props) {
             { url: service.jira_epic ? `https://mumz.atlassian.net/browse/${service.jira_epic}` : null, color: "bg-[var(--mw-navy)]", title: "Jira" },
           ].filter(l => l.url)
 
+          const hasUpdates = !!(lastMeetingDate && svcItems.some(i => i.updated_at >= lastMeetingDate))
+
           return (
             <Card
               key={service.id}
-              className="cursor-pointer hover:shadow-md hover:border-[var(--mw-pink)]/30 transition-all group"
+              className={cn(
+                "cursor-pointer hover:shadow-md transition-all group",
+                hasUpdates
+                  ? "border-amber-300 bg-amber-50/50 hover:border-amber-400"
+                  : "hover:border-[var(--mw-pink)]/30"
+              )}
               onClick={() => openServicePanel(service)}
             >
               <CardContent className="p-5 space-y-3">
                 {/* Name + Status */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="text-base font-bold text-[var(--mw-text-primary)] group-hover:text-[var(--mw-navy)] transition-colors">{service.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-[var(--mw-text-primary)] group-hover:text-[var(--mw-navy)] transition-colors">{service.name}</h3>
+                      {hasUpdates && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400 text-white shrink-0">UPDATED</span>
+                      )}
+                    </div>
                     <p className="text-sm text-[var(--mw-text-secondary)] mt-0.5 line-clamp-1">{service.description}</p>
                   </div>
                   <Badge className={cn("shrink-0", platformCfg.color)}>

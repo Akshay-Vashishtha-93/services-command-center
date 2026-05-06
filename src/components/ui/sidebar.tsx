@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Presentation,
   StickyNote,
+  Columns2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -21,6 +22,7 @@ const navItems = [
   { label: "Weekly Charter", href: "/presentation", icon: Presentation },
   { label: "Updates", href: "/updates", icon: StickyNote },
   { label: "Approvals", href: "/approvals", icon: ShieldCheck },
+  { label: "Design Compare", href: "/design-compare", icon: Columns2 },
   { label: "Admin", href: "/admin", icon: Settings },
 ]
 
