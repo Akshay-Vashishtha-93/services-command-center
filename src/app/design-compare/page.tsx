@@ -1,8 +1,49 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Columns2, ExternalLink, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+const PHONE_W = 430
+const PHONE_H = 860
+
+function AdaptivePhone({ src }: { src: string }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const obs = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      const s = Math.min((width - 48) / PHONE_W, (height - 48) / PHONE_H)
+      setScale(Math.max(0.3, s))
+    })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  return (
+    <div ref={containerRef} className="flex-1 overflow-hidden bg-gray-100 flex items-center justify-center">
+      <div style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}>
+        <div style={{ background: "#1c1c1e", borderRadius: 54, padding: 14, width: PHONE_W, flexShrink: 0 }} className="shadow-2xl">
+          {/* Dynamic island */}
+          <div style={{ position: "relative", zIndex: 10, margin: "0 auto 4px", width: 120, height: 34, background: "#1c1c1e", borderRadius: 20 }} />
+          {/* Screen */}
+          <div style={{ borderRadius: 44, overflow: "hidden", background: "#fff", height: PHONE_H - 80 }}>
+            <iframe
+              key={src}
+              src={src}
+              style={{ width: 402, height: PHONE_H - 80, border: "none", display: "block" }}
+              title="Production mweb preview"
+            />
+          </div>
+        </div>
+        <p className="text-center text-[10px] text-gray-400 font-medium tracking-wide mt-3">390px mobile view</p>
+      </div>
+    </div>
+  )
+}
 
 function toFigmaEmbed(url: string): string {
   const trimmed = url.trim()
@@ -249,39 +290,19 @@ export default function DesignComparePage() {
             )}
           </div>
 
-          <div className="flex-1 overflow-auto bg-gray-100 flex items-start justify-center py-6 px-4">
-            {slot.prodLoaded ? (
-              <div className="flex flex-col items-center gap-3">
-                <div
-                  className="relative shadow-2xl"
-                  style={{ background: "#1c1c1e", borderRadius: 54, padding: 14, width: 430, flexShrink: 0 }}
-                >
-                  {/* Dynamic island */}
-                  <div style={{ position: "absolute", top: 18, left: "50%", transform: "translateX(-50%)", width: 120, height: 34, background: "#1c1c1e", borderRadius: 20, zIndex: 10 }} />
-                  {/* Screen */}
-                  <div style={{ borderRadius: 44, overflow: "hidden", background: "#fff", height: "calc(100vh - 280px)", minHeight: 560 }}>
-                    <iframe
-                      key={`${active}-prod-${slot.prodLoaded}`}
-                      src={slot.prodLoaded}
-                      style={{ width: 402, height: "100%", border: "none", display: "block" }}
-                      title="Production mweb preview"
-                    />
-                  </div>
-                </div>
-                <p className="text-[10px] text-gray-400 font-medium tracking-wide">390px mobile view</p>
+          {slot.prodLoaded ? (
+            <AdaptivePhone key={`${active}-${slot.prodLoaded}`} src={slot.prodLoaded} />
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-gray-100 text-[var(--mw-text-secondary)]">
+              <div className="w-16 h-28 rounded-2xl bg-white border-2 border-dashed border-emerald-200 flex items-center justify-center">
+                <span className="text-[10px] font-bold text-emerald-300 tracking-wide">mweb</span>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full gap-4 text-[var(--mw-text-secondary)]">
-                <div className="w-16 h-28 rounded-2xl bg-white border-2 border-dashed border-emerald-200 flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-emerald-300 tracking-wide">mweb</span>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-medium">No production URL loaded</p>
-                  <p className="text-xs mt-1 opacity-60">Paste a live URL above and click Load</p>
-                </div>
+              <div className="text-center">
+                <p className="text-sm font-medium">No production URL loaded</p>
+                <p className="text-xs mt-1 opacity-60">Paste a live URL above and click Load</p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
       </div>
