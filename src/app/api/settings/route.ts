@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getMeetingSettings, updateMeetingSettings } from "@/lib/meeting-tracker"
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   return NextResponse.json(getMeetingSettings())
 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getAllApprovals, getPendingApprovals, resolveApproval } from "@/lib/approvals-store"
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   const pending = request.nextUrl.searchParams.get("pending") === "true"
   const items = pending ? getPendingApprovals() : getAllApprovals()

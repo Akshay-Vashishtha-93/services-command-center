@@ -304,21 +304,24 @@ export default function DashboardPage() {
   const [syncDialogOpen, setSyncDialogOpen] = useState(false)
   const [meetingDate, setMeetingDate] = useState("")
   const [lastMeetingDate, setLastMeetingDate] = useState<string | null>(null)
-  function fetchAll() {
-    Promise.all([
-      fetch("/api/items?tab=Services+Enhancement").then((r) => r.json()),
-      fetch("/api/items/stats?tab=Services+Enhancement").then((r) => r.json()),
-      fetch("/api/items/changes?days=7").then((r) => r.json()),
-    ])
-      .then(([itemsData, statsData, changesData]) => {
-        setItems(itemsData)
-        setStats(statsData)
-        setChanges(changesData)
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
+  async function fetchAll() {
+    const no = { cache: "no-store" } as const
+    try {
+      const [itemsData, statsData, changesData] = await Promise.all([
+        fetch("/api/items?tab=Services+Enhancement", no).then(r => r.json()),
+        fetch("/api/items/stats?tab=Services+Enhancement", no).then(r => r.json()),
+        fetch("/api/items/changes?days=7", no).then(r => r.json()),
+      ])
+      setItems(itemsData)
+      setStats(statsData)
+      setChanges(changesData)
+    } catch (e) {
+      console.error("fetchAll items error", e)
+    } finally {
+      setLoading(false)
+    }
 
-    fetch("/api/approvals?pending=true")
+    fetch("/api/approvals?pending=true", no)
       .then(r => r.json())
       .then((data: Array<{ type: string }>) => {
         setApprovals({
@@ -328,12 +331,12 @@ export default function DashboardPage() {
       })
       .catch(() => {})
 
-    fetch("/api/sync")
+    fetch("/api/sync", no)
       .then(r => r.json())
       .then(data => setLastSync(data.last_sync))
       .catch(() => {})
 
-    fetch("/api/settings")
+    fetch("/api/settings", no)
       .then(r => r.json())
       .then(data => setLastMeetingDate(data.last_meeting_date))
       .catch(() => {})
@@ -365,9 +368,9 @@ export default function DashboardPage() {
         })
         setLastMeetingDate(meetingDate)
       }
-      fetchAll()
+      await fetchAll()
     } finally {
-      setTimeout(() => setRefreshing(false), 800)
+      setRefreshing(false)
     }
   }
 
